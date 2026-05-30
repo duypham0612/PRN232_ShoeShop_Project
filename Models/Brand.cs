@@ -2,6 +2,7 @@
 #nullable disable
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace ShoeShop.Models;
 
@@ -12,6 +13,6 @@ public partial class Brand
     public string BrandName { get; set; }
 
     public string Description { get; set; }
-
+    [JsonIgnore]
     public virtual ICollection<Shoe> Shoes { get; set; } = new List<Shoe>();
 }
