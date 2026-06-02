@@ -156,7 +156,7 @@ namespace ShoeShop.Controllers
                 UserId = user.UserId,
                 FullName = user.FullName,
                 RoleId = user.RoleId,
-                RedirectTo = (user.Role != null && user.Role.RoleName == "Admin") || user.RoleId == 1 ? "/admin/users.html" : "/shoemanagement"
+                RedirectTo = (user.Role != null && user.Role.RoleName == "Admin") || user.RoleId == 1 ? "/admin/users.html" : "/"
             };
 
             return Ok(resp);

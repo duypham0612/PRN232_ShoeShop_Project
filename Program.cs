@@ -63,16 +63,59 @@ namespace ShoeShop
 
             app.UseAuthentication();
             app.UseAuthorization();
+
+            // Serve default files (index.html) from wwwroot and static files
+            app.UseDefaultFiles();
             app.UseStaticFiles();
 
-            // Make root URL redirect to the login page
-            app.MapGet("/", async context =>
-            {
-                context.Response.Redirect("/account/login.html");
-                await Task.CompletedTask;
-            });
-
             app.MapControllers();
+
+            // Seed roles and an admin user for testing if they do not exist
+            using (var scope = app.Services.CreateScope())
+            {
+                try
+                {
+                    var db = scope.ServiceProvider.GetRequiredService<PRN232_ShoeShopContext>();
+                    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
+                    // Ensure database can be accessed
+                    db.Database.EnsureCreated();
+
+                    if (!db.Roles.Any(r => r.RoleName == "Admin"))
+                    {
+                        db.Roles.Add(new Role { RoleName = "Admin" });
+                    }
+                    if (!db.Roles.Any(r => r.RoleName == "Staff"))
+                    {
+                        db.Roles.Add(new Role { RoleName = "Staff" });
+                    }
+                    db.SaveChanges();
+
+                    // Create default admin user if missing
+                    if (!db.Users.Any(u => u.Email == "admin@shoeshop.local"))
+                    {
+                        var adminRole = db.Roles.First(r => r.RoleName == "Admin");
+                        var admin = new User
+                        {
+                            FullName = "Administrator",
+                            Email = "admin@shoeshop.local",
+                            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin@123"),
+                            RoleId = adminRole.RoleId,
+                            IsActive = true,
+                            CreatedAt = DateTime.Now
+                        };
+                        db.Users.Add(admin);
+                        db.SaveChanges();
+                        logger.LogInformation("Seeded default admin: admin@shoeshop.local / Admin@123");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // do not crash application if seeding fails; log error
+                    var logger = scope.ServiceProvider.GetService<ILogger<Program>>();
+                    logger?.LogError(ex, "Error while seeding database");
+                }
+            }
 
             app.Run();
         }
