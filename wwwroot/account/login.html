@@ -1,0 +1,65 @@
+<!-- File encoding: UTF-8 -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Login - ShoeShop</title>
+  <link rel="stylesheet" href="/css/auth.css" />
+</head>
+<body>
+  <div class="auth-container">
+    <h1>Login</h1>
+    <form id="loginForm">
+      <label for="email">Email or username</label>
+      <input id="email" name="email" type="email" required />
+
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" required />
+
+      <div id="error" class="error" style="display:none;color:#ef4444;margin-top:8px;font-size:13px"></div>
+
+      <button type="submit" class="btn primary">Login</button>
+
+      <div class="actions">
+        <a href="/account/register.html" class="btn link">Register</a>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    async function postJson(url, data) {
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      const text = await resp.text();
+      try { return { ok: resp.ok, data: JSON.parse(text) }; } catch { return { ok: resp.ok, data: text }; }
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const errEl = document.getElementById('error');
+      errEl.style.display = 'none';
+
+      const result = await postJson('/api/auth/login', { email, password });
+      if (!result.ok) {
+        errEl.textContent = (typeof result.data === 'string') ? result.data : 'Login failed.';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      const payload = result.data;
+      // Redirect based on role returned
+      if (payload.redirectTo) {
+        window.location.href = payload.redirectTo;
+      } else {
+        window.location.href = '/';
+      }
+    });
+  </script>
+</body>
+</html></html>

@@ -1,0 +1,229 @@
+<!-- File encoding: UTF-8 -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>User Management - ShoeShop</title>
+  <link rel="stylesheet" href="/css/auth.css" />
+  <style>
+    /* Override global centering from auth.css: place content at top */
+    body { display: block; background: #f4f6f8; margin: 0; font-family: Segoe UI, Roboto, Arial, sans-serif; }
+
+    /* Layout: full width content */
+    .page { width: 100%; padding: 20px 28px; box-sizing: border-box; }
+    .header { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+    .title { font-size:20px; color:#0f172a; margin:0; }
+
+    .search-row { display:flex; gap:8px; margin-top:12px; margin-bottom:12px; }
+    .search-row input{ flex:1; padding:10px;border-radius:6px;border:1px solid #e6e9ef;font-size:14px }
+    .search-row .btn{ padding:10px 14px }
+
+    table{width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden}
+    th,td{padding:10px;border-bottom:1px solid #eef2f7;text-align:left}
+    thead th{background:#f8fafc;color:#0f172a;font-weight:600}
+    tbody tr:hover{background:#fbfbfd}
+
+    .table-wrap{width:100%;overflow:auto;background:transparent}
+
+    /* simple inline form */
+    .user-form{background:#fff;padding:12px;border-radius:8px;border:1px solid #e6e9ef;margin-bottom:12px;display:none}
+    .user-form .row{display:flex;gap:8px;margin-bottom:8px}
+    .user-form input, .user-form select{flex:1;padding:8px;border:1px solid #e6e9ef;border-radius:6px}
+    .actions-right{display:flex;gap:8px}
+
+    .small-btn{padding:6px 8px;font-size:13px}
+    .btn-danger{background:#ef4444;color:#fff;border-radius:6px;border:none;padding:8px 10px}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <h1 class="title">User Management</h1>
+      <div class="actions-right">
+        <button id="btnNew" class="btn">New User</button>
+        <button id="btnRefreshTop" class="btn">Refresh</button>
+      </div>
+    </div>
+
+    <div class="search-row">
+      <input id="q" placeholder="Search by name or email" />
+      <button id="btnSearch" class="btn">Search</button>
+    </div>
+
+    <div class="user-form" id="userForm">
+      <input type="hidden" id="userId" />
+      <div class="row">
+        <input id="fullName" placeholder="Full name" />
+        <input id="email" placeholder="Email" />
+      </div>
+      <div class="row">
+        <input id="password" placeholder="Password (only for new users)" />
+        <input id="phone" placeholder="Phone" />
+      </div>
+      <div class="row">
+        <input id="address" placeholder="Address" />
+        <select id="roleId">
+          <option value="2">Staff</option>
+          <option value="1">Admin</option>
+        </select>
+      </div>
+      <div class="row">
+        <label><input type="checkbox" id="isActive" /> Active</label>
+        <div style="flex:1"></div>
+        <button id="btnSave" class="btn primary small-btn">Save</button>
+        <button id="btnCancel" class="btn small-btn">Cancel</button>
+      </div>
+      <div id="formError" style="color:#ef4444;display:none;margin-top:6px;font-size:13px"></div>
+    </div>
+
+    <div class="table-wrap">
+      <table id="tbl">
+        <thead>
+          <tr>
+            <th style="width:60px">ID</th>
+            <th>Full Name</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Address</th>
+            <th style="width:140px">Role</th>
+            <th style="width:80px">Active</th>
+            <th style="width:220px">Created At</th>
+            <th style="width:140px">Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    async function getJson(url, opts){
+      const r = await fetch(url, Object.assign({credentials:'include'}, opts||{}));
+      if(!r.ok) throw new Error(await r.text());
+      return r.json();
+    }
+
+    async function request(url, opts){
+      const r = await fetch(url, Object.assign({credentials:'include'}, opts||{}));
+      if(!r.ok) throw new Error(await r.text());
+      return r;
+    }
+
+    function showForm(mode, user){
+      document.getElementById('formError').style.display='none';
+      document.getElementById('userForm').style.display='block';
+      if(mode==='new'){
+        document.getElementById('userId').value='';
+        document.getElementById('fullName').value='';
+        document.getElementById('email').value='';
+        document.getElementById('password').value='';
+        document.getElementById('phone').value='';
+        document.getElementById('address').value='';
+        document.getElementById('roleId').value='2';
+        document.getElementById('isActive').checked=true;
+      } else {
+        document.getElementById('userId').value = user.userId;
+        document.getElementById('fullName').value = user.fullName || '';
+        document.getElementById('email').value = user.email || '';
+        document.getElementById('password').value = '';
+        document.getElementById('phone').value = user.phone || '';
+        document.getElementById('address').value = user.address || '';
+        document.getElementById('roleId').value = (user.role && user.role.toLowerCase()==='admin')? '1' : '2';
+        document.getElementById('isActive').checked = user.isActive;
+      }
+    }
+
+    function hideForm(){ document.getElementById('userForm').style.display='none'; }
+
+    async function load(q){
+      try{
+        const url = '/api/admin/users' + (q?('?search='+encodeURIComponent(q)):'');
+        const data = await getJson(url);
+        const tbody = document.querySelector('#tbl tbody');
+        tbody.innerHTML = '';
+        data.forEach(u =>{
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${u.userId}</td>
+            <td>${u.fullName}</td>
+            <td>${u.email}</td>
+            <td>${u.phone || ''}</td>
+            <td>${u.address || ''}</td>
+            <td>${u.role || ''}</td>
+            <td>${u.isActive ? 'Yes' : 'No'}</td>
+            <td>${new Date(u.createdAt).toLocaleString()}</td>
+            <td>
+              <button class="btn small-btn" data-id="${u.userId}" data-action="edit">Edit</button>
+              <button class="btn small-btn btn-danger" data-id="${u.userId}" data-action="delete">Delete</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }catch(err){
+        alert('Failed to load users: ' + err.message);
+      }
+    }
+
+    // event delegation for edit/delete
+    document.querySelector('#tbl tbody').addEventListener('click', async function(e){
+      const btn = e.target.closest('button');
+      if(!btn) return;
+      const id = btn.getAttribute('data-id');
+      const action = btn.getAttribute('data-action');
+      if(action==='edit'){
+        try{
+          const user = await getJson('/api/admin/users/' + id);
+          showForm('edit', user);
+        }catch(err){ alert('Failed to load user: ' + err.message); }
+      } else if(action==='delete'){
+        if(!confirm('Delete user id '+id+' ?')) return;
+        try{
+          await request('/api/admin/users/' + id, { method: 'DELETE' });
+          load(document.getElementById('q').value);
+        }catch(err){ alert('Failed to delete: ' + err.message); }
+      }
+    });
+
+    document.getElementById('btnNew').addEventListener('click', ()=> showForm('new'));
+    document.getElementById('btnCancel').addEventListener('click', ()=> hideForm());
+    document.getElementById('btnRefreshTop').addEventListener('click', ()=> load());
+    document.getElementById('btnSearch').addEventListener('click', ()=> load(document.getElementById('q').value));
+
+    document.getElementById('btnSave').addEventListener('click', async function(){
+      const id = document.getElementById('userId').value;
+      const payload = {
+        fullName: document.getElementById('fullName').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        // password only for create
+        password: document.getElementById('password').value,
+        phone: document.getElementById('phone').value.trim(),
+        address: document.getElementById('address').value.trim(),
+        roleId: parseInt(document.getElementById('roleId').value,10),
+        isActive: document.getElementById('isActive').checked
+      };
+      const errEl = document.getElementById('formError');
+      errEl.style.display='none';
+
+      try{
+        if(!payload.fullName || !payload.email){ errEl.textContent='Full name and email are required.'; errEl.style.display='block'; return; }
+        if(id){
+          // update
+          // remove password from payload for update
+          delete payload.password;
+          await request('/api/admin/users/' + id, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        } else {
+          // create
+          if(!payload.password){ errEl.textContent='Password is required for new user.'; errEl.style.display='block'; return; }
+          await request('/api/admin/users', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        }
+        hideForm();
+        load(document.getElementById('q').value);
+      }catch(err){ errEl.textContent = err.message; errEl.style.display='block'; }
+    });
+
+    // initial load
+    load();
+  </script>
+</body>
+</html>
