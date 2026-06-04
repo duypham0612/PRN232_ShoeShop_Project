@@ -60,13 +60,13 @@ namespace ShoeShop.Controllers
         {
             if (req == null || string.IsNullOrEmpty(req.Email) || string.IsNullOrEmpty(req.Password))
             {
-                return BadRequest("Email và m?t kh?u là b?t bu?c.");
+                return BadRequest("Email and password are required.");
             }
 
             var user = await _context.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.Email == req.Email);
             if (user == null)
             {
-                return Unauthorized("Email ho?c m?t kh?u không ðúng.");
+                return Unauthorized("Email or password is incorrect.");
             }
 
             // If account is locked/inactive return explicit message
@@ -135,7 +135,7 @@ namespace ShoeShop.Controllers
 
             if (!passwordMatches)
             {
-                return Unauthorized("Email ho?c m?t kh?u không ðúng.");
+                return Unauthorized("Invalid email or password.");
             }
 
             var claims = new List<Claim>
@@ -226,7 +226,7 @@ namespace ShoeShop.Controllers
             var exists = await _context.Users.AnyAsync(u => u.Email == req.Email);
             if (exists)
             {
-                return Conflict("Email ð? ðý?c s? d?ng.");
+                return Conflict("Email has already been taken.");
             }
 
             // Hash password
